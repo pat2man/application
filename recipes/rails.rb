@@ -152,14 +152,14 @@ if app["memcached_role"]
 end
 
 ## Then, deploy
-deploy_revision app['id'] do
+deploy app['id'] do
   revision app['revision'][node.chef_environment]
   repository app['repository']
   user app['owner']
   group app['group']
   deploy_to app['deploy_to']
   environment 'RAILS_ENV' => rails_env
-  action app['force'][node.chef_environment] ? :force_deploy : :deploy
+  action File.exists?("#{app['deploy_to']}/id_deploy") ? :nothing : :deploy
   ssh_wrapper "#{app['deploy_to']}/deploy-ssh-wrapper" if app['deploy_key']
   shallow_clone true
   before_migrate do
