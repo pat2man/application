@@ -152,63 +152,66 @@ if app["memcached_role"]
 end
 
 ## Then, deploy
-deploy app['id'] do
-  revision app['revision'][node.chef_environment]
-  repository app['repository']
-  user app['owner']
-  group app['group']
-  deploy_to app['deploy_to']
-  environment 'RAILS_ENV' => rails_env
-  action File.exists?("#{app['deploy_to']}/id_deploy") ? :nothing : :deploy
-  ssh_wrapper "#{app['deploy_to']}/deploy-ssh-wrapper" if app['deploy_key']
-  shallow_clone true
-  before_migrate do
-    if app['gems'].has_key?('bundler')
-      link "#{release_path}/vendor/bundle" do
-        to "#{app['deploy_to']}/shared/vendor_bundle"
-      end
-      common_groups = %w{development test cucumber staging production}
-      execute "bundle install --deployment --without #{(common_groups -([node.chef_environment])).join(' ')}" do
-        ignore_failure true
-        cwd release_path
-      end
-    elsif app['gems'].has_key?('bundler08')
-      execute "gem bundle" do
-        ignore_failure true
-        cwd release_path
-      end
+log "***\nRoles: #{node.run_list.roles.to_s}\n***"
+unless node.run_list.roles.include? "vagrant"
+  deploy app['id'] do
+    revision app['revision'][node.chef_environment]
+    repository app['repository']
+    user app['owner']
+    group app['group']
+    deploy_to app['deploy_to']
+    environment 'RAILS_ENV' => rails_env
+    action File.exists?("#{app['deploy_to']}/id_deploy") ? :nothing : :deploy
+    ssh_wrapper "#{app['deploy_to']}/deploy-ssh-wrapper" if app['deploy_key']
+    shallow_clone true
+    before_migrate do
+      if app['gems'].has_key?('bundler')
+        link "#{release_path}/vendor/bundle" do
+          to "#{app['deploy_to']}/shared/vendor_bundle"
+        end
+        common_groups = %w{development test cucumber staging production}
+        execute "bundle install --deployment --without #{(common_groups -([node.chef_environment])).join(' ')}" do
+          ignore_failure true
+          cwd release_path
+        end
+      elsif app['gems'].has_key?('bundler08')
+        execute "gem bundle" do
+          ignore_failure true
+          cwd release_path
+        end
 
-    elsif node.chef_environment && app['databases'].has_key?(node.chef_environment)
-      # chef runs before_migrate, then symlink_before_migrate symlinks, then migrations,
-      # yet our before_migrate needs database.yml to exist (and must complete before
-      # migrations).
-      #
-      # maybe worth doing run_symlinks_before_migrate before before_migrate callbacks,
-      # or an add'l callback.
-      execute "(ln -s ../../../shared/database.yml config/database.yml && rake gems:install); rm config/database.yml" do
-        ignore_failure true
-        cwd release_path
+      elsif node.chef_environment && app['databases'].has_key?(node.chef_environment)
+        # chef runs before_migrate, then symlink_before_migrate symlinks, then migrations,
+        # yet our before_migrate needs database.yml to exist (and must complete before
+        # migrations).
+        #
+        # maybe worth doing run_symlinks_before_migrate before before_migrate callbacks,
+        # or an add'l callback.
+        execute "(ln -s ../../../shared/database.yml config/database.yml && rake gems:install); rm config/database.yml" do
+          ignore_failure true
+          cwd release_path
+        end
       end
     end
-  end
 
-  symlink_before_migrate({
-    "database.yml" => "config/database.yml",
-    "memcached.yml" => "config/memcached.yml"
-  })
+    symlink_before_migrate({
+      "database.yml" => "config/database.yml",
+      "memcached.yml" => "config/memcached.yml"
+    })
 
-  if app['migrate'][node.chef_environment] && node[:apps][app['id']][node.chef_environment][:run_migrations]
-    migrate true
-    migration_command app['migration_command'] || "rake db:migrate"
-  else
-    migrate false
-  end
-  before_symlink do
-    ruby_block "remove_run_migrations" do
-      block do
-        if node.role?("#{app['id']}_run_migrations")
-          Chef::Log.info("Migrations were run, removing role[#{app['id']}_run_migrations]")
-          node.run_list.remove("role[#{app['id']}_run_migrations]")
+    if app['migrate'][node.chef_environment] && node[:apps][app['id']][node.chef_environment][:run_migrations]
+      migrate true
+      migration_command app['migration_command'] || "rake db:migrate"
+    else
+      migrate false
+    end
+    before_symlink do
+      ruby_block "remove_run_migrations" do
+        block do
+          if node.role?("#{app['id']}_run_migrations")
+            Chef::Log.info("Migrations were run, removing role[#{app['id']}_run_migrations]")
+            node.run_list.remove("role[#{app['id']}_run_migrations]")
+          end
         end
       end
     end
