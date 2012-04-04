@@ -33,6 +33,12 @@
   "migrate": {
     "production": "true or false boolean to force migration, see rails.rb recipe"
   },
+  "compile_assets": {
+      "production": "true or false boolean to enable asset compilation, see rails.rb recipe"
+  },
+  "timestamp_deploy": {
+      "production": "true or false boolean to enable asset compilation, see rails.rb recipe"
+  },
   "databases": {
     "production": {
       "reconnect": "true",
@@ -66,6 +72,14 @@
   "gems": {
     "gem_name": "specific gems required for installation to run the application, and if a specific version is required, e.g.",
     "rails": "2.3.5"
+  },
+  "env_vars": {
+    "production": {
+        "RAILS_ENV": "production"
+    }
+  },
+  "port": {
+    "production": "8088"
   },
   "memcached": {
     "production": {

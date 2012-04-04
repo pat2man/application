@@ -19,6 +19,7 @@
 
 action :create do
   app = new_resource.application
+  environment = node.run_state[:rails_env] || node.chef_environment
 
   run_context.include_recipe "unicorn"
 
@@ -27,7 +28,7 @@ action :create do
   node.default[:unicorn][:worker_processes] = [node[:cpu][:total].to_i * 4, 8].min
   node.default[:unicorn][:preload_app] = false
   node.default[:unicorn][:before_fork] = 'sleep 1' 
-  node.default[:unicorn][:port] = '8080'
+  node.default[:unicorn][:port] = app['port'][environment] || '8080'
   node.set[:unicorn][:options] = { :tcp_nodelay => true, :backlog => 100 }
 
   unicorn_config "/etc/unicorn/#{app['id']}.rb" do
@@ -37,15 +38,20 @@ action :create do
     preload_app node[:unicorn][:preload_app] 
     worker_processes node[:unicorn][:worker_processes]
     before_fork node[:unicorn][:before_fork] 
+    after_fork node[:unicorn][:after_fork]
+    pid "#{app['deploy_to']}/shared/pids/unicorn.pid"
+    owner app['owner']
+    group app['group']
   end
 
   runit_service app['id'] do
     template_name 'unicorn'
     cookbook 'application'
+    env app['env_vars'][environment] || {}
     options(
       :app => app,
       :rails_env => node.run_state[:rails_env] || node.chef_environment,
-      :smells_like_rack => ::File.exists?(::File.join(app['deploy_to'], "current", "config.ru"))
+      :smells_like_rack => ::File.exists?(::File.join(app['deploy_to'], "current", "config.ru")),
     )
     run_restart false
   end

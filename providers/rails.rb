@@ -151,16 +151,25 @@ action :create do
       )
     end
   end
+  
+  if app['force'][node.chef_environment]
+    action = :force_deploy
+  elsif app['timestamp_deploy'][node.chef_enviromnent] and !File.exists?("#{app['deploy_to']}/CURRENT")
+    action = :deploy
+  else
+    action = :none
+  end
 
   ## Then, deploy
-  deploy_revision app['id'] do
+  deploy app['id'] do
+    provider app['timestamp_deploy'][node.chef_enviromnent] ? Chef::Provider::Deploy::TimstampedDeploy : Chef::Provider::Deploy::Revision
     revision app['revision'][node.chef_environment]
     repository app['repository']
     user app['owner']
     group app['group']
     deploy_to app['deploy_to']
     environment 'RAILS_ENV' => rails_env
-    action app['force'][node.chef_environment] ? :force_deploy : :deploy
+    action action
     ssh_wrapper "#{app['deploy_to']}/deploy-ssh-wrapper" if app['deploy_key']
     shallow_clone true
     before_migrate do
@@ -187,6 +196,13 @@ action :create do
         # maybe worth doing run_symlinks_before_migrate before before_migrate callbacks,
         # or an add'l callback.
         execute "(ln -s ../../../shared/database.yml config/database.yml && rake gems:install); rm config/database.yml" do
+          ignore_failure true
+          cwd release_path
+        end
+      end
+      
+      if app['compile_assets'][node.chef_environment]
+        execute "rake assets:precompile}" do
           ignore_failure true
           cwd release_path
         end
