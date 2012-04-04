@@ -1,8 +1,8 @@
 #
 # Cookbook Name:: application
-# Recipe:: unicorn 
+# Recipe:: unicorn
 #
-# Copyright 2009, Opscode, Inc.
+# Copyright 2011, Opscode, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,42 +17,43 @@
 # limitations under the License.
 #
 
-app = node.run_state[:current_app] 
+action :create do
+  app = new_resource.application
 
-include_recipe "unicorn"
+  run_context.include_recipe "unicorn"
 
-node.default[:unicorn][:worker_timeout] = 60
-node.default[:unicorn][:preload_app] = false
-node.default[:unicorn][:worker_processes] = [node[:cpu][:total].to_i * 4, 8].min
-node.default[:unicorn][:preload_app] = false
-node.default[:unicorn][:before_fork] = 'sleep 1' 
-node.default[:unicorn][:port] = '8080'
-node.set[:unicorn][:options] = { :tcp_nodelay => true, :backlog => 100 }
+  node.default[:unicorn][:worker_timeout] = 60
+  node.default[:unicorn][:preload_app] = false
+  node.default[:unicorn][:worker_processes] = [node[:cpu][:total].to_i * 4, 8].min
+  node.default[:unicorn][:preload_app] = false
+  node.default[:unicorn][:before_fork] = 'sleep 1' 
+  node.default[:unicorn][:port] = '8080'
+  node.set[:unicorn][:options] = { :tcp_nodelay => true, :backlog => 100 }
 
-unicorn_config "/etc/unicorn/#{app['id']}.rb" do
-  listen({ node[:unicorn][:port] => node[:unicorn][:options] })
-  working_directory ::File.join(app['deploy_to'], 'current')
-  worker_timeout node[:unicorn][:worker_timeout] 
-  preload_app node[:unicorn][:preload_app] 
-  worker_processes node[:unicorn][:worker_processes]
-  before_fork node[:unicorn][:before_fork] 
-end
+  unicorn_config "/etc/unicorn/#{app['id']}.rb" do
+    listen({ node[:unicorn][:port] => node[:unicorn][:options] })
+    working_directory ::File.join(app['deploy_to'], 'current')
+    worker_timeout node[:unicorn][:worker_timeout] 
+    preload_app node[:unicorn][:preload_app] 
+    worker_processes node[:unicorn][:worker_processes]
+    before_fork node[:unicorn][:before_fork] 
+  end
 
-runit_service app['id'] do
-  template_name 'unicorn'
-  cookbook 'application'
-  options(
-    :app => app,
-    :rails_env => node.run_state[:rails_env] || node.chef_environment,
-    :smells_like_rack => ::File.exists?(::File.join(app['deploy_to'], "current", "config.ru"))
-  )
-  run_restart false
-end
+  runit_service app['id'] do
+    template_name 'unicorn'
+    cookbook 'application'
+    options(
+      :app => app,
+      :rails_env => node.run_state[:rails_env] || node.chef_environment,
+      :smells_like_rack => ::File.exists?(::File.join(app['deploy_to'], "current", "config.ru"))
+    )
+    run_restart false
+  end
 
-if ::File.exists?(::File.join(app['deploy_to'], "current"))
-  d = resources(:deploy_revision => app['id'])
-  d.restart_command do
-    execute "/etc/init.d/#{app['id']} hup"
+  if ::File.exists?(::File.join(app['deploy_to'], "current"))
+    d = run_context.resource_collection.resources(:deploy_revision => app['id'])
+    d.restart_command do
+      execute "/etc/init.d/#{app['id']} hup"
+    end
   end
 end
-

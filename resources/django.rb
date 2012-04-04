@@ -1,8 +1,8 @@
 #
 # Cookbook Name:: application
-# Recipe:: default
+# Resource:: django
 #
-# Copyright 2009, Opscode, Inc.
+# Copyright 2011, ZephirWorks
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,18 +17,7 @@
 # limitations under the License.
 #
 
-search(:apps) do |app|
-  (app["server_roles"] & node.roles).each do |app_role|
-    unless app["type"][app_role]
-      Chef::Log.warn("Nothing to do for #{app_role}, check app[:type]")
-      next
-    end
+actions :create
 
-    app["type"][app_role].each do |thing|
-      send(:"application_#{thing}", app[:id]) do
-        application app
-        action :create
-      end
-    end
-  end
-end
+attribute :name, :kind_of => String, :name_attribute => true
+attribute :application

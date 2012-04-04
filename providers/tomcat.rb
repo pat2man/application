@@ -1,8 +1,8 @@
 #
 # Cookbook Name:: application
-# Recipe:: tomcat 
+# Recipe:: tomcat
 #
-# Copyright 2010, Opscode, Inc.
+# Copyright 2011, Opscode, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,23 +17,25 @@
 # limitations under the License.
 #
 
-app = node.run_state[:current_app]
+action :create do
+  app = new_resource.application
 
-include_recipe "tomcat"
+  run_context.include_recipe "tomcat"
 
-# remove ROOT application
-# TODO create a LWRP to enable/disable tomcat apps
-directory "#{node['tomcat']['webapp_dir']}/ROOT" do
-  recursive true
-  action :delete
-  not_if "test -L #{node['tomcat']['context_dir']}/ROOT.xml"
-end
-link "#{node['tomcat']['context_dir']}/ROOT.xml" do
-  to "#{app['deploy_to']}/shared/#{app['id']}.xml"
-  notifies :restart, resources(:service => "tomcat")
-end
+  # remove ROOT application
+  # TODO create a LWRP to enable/disable tomcat apps
+  directory "#{node['tomcat']['webapp_dir']}/ROOT" do
+    recursive true
+    action :delete
+    not_if "test -L #{node['tomcat']['context_dir']}/ROOT.xml"
+  end
+  link "#{node['tomcat']['context_dir']}/ROOT.xml" do
+    to "#{app['deploy_to']}/shared/#{app['id']}.xml"
+    notifies :restart, resources(:service => "tomcat")
+  end
 
-if ::File.symlink?(::File.join(node['tomcat']['context_dir'], "ROOT.xml"))
-  d = resources(:remote_file => app['id'])
-  d.notifies :restart, resources(:service => "tomcat")
+  if ::File.symlink?(::File.join(node['tomcat']['context_dir'], "ROOT.xml"))
+    d = run_context.resource_collection.resources(:remote_file => app['id'])
+    d.notifies :restart, resources(:service => "tomcat")
+  end
 end
