@@ -20,6 +20,7 @@
 action :create do
   app = new_resource.application
   app['port'] ||= {}
+  app['unicorn'] ||= {}
   
   environment = node.run_state[:rails_env] || node.chef_environment
 
@@ -39,8 +40,8 @@ action :create do
     worker_timeout node[:unicorn][:worker_timeout] 
     preload_app node[:unicorn][:preload_app] 
     worker_processes node[:unicorn][:worker_processes]
-    before_fork node[:unicorn][:before_fork] 
-    after_fork node[:unicorn][:after_fork]
+    before_fork app['unicorn']['before_fork'] || node[:unicorn][:before_fork] 
+    after_fork app['unicorn']['after_fork'] || node[:unicorn][:after_fork]
     pid "#{app['deploy_to']}/shared/pids/unicorn.pid"
     owner app['owner']
     group app['group']
