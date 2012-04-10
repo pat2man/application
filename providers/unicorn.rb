@@ -19,6 +19,8 @@
 
 action :create do
   app = new_resource.application
+  app['port'] ||= {}
+  
   environment = node.run_state[:rails_env] || node.chef_environment
 
   run_context.include_recipe "unicorn"
@@ -57,7 +59,7 @@ action :create do
   end
 
   if ::File.exists?(::File.join(app['deploy_to'], "current"))
-    d = run_context.resource_collection.resources(:deploy_revision => app['id'])
+    d = run_context.resource_collection.resources(:deploy => app['id'])
     d.restart_command do
       execute "/etc/init.d/#{app['id']} hup"
     end

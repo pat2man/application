@@ -19,7 +19,13 @@
 
 action :create do
   app = new_resource.application
-
+  
+  # Set some defaults in case they were not included in the data bag
+  app['migrate'] ||= {}
+  app['env_vars'] ||= {}
+  app['compile_assets'] ||= {}
+  app['timestamp_deploy'] ||= {}
+  
   # make the _default chef_environment look like the Rails production environment
   rails_env = (node.chef_environment =~ /_default/ ? "production" : node.chef_environment)
   node.run_state[:rails_env] = rails_env
@@ -154,15 +160,15 @@ action :create do
   
   if app['force'][node.chef_environment]
     action = :force_deploy
-  elsif app['timestamp_deploy'][node.chef_enviromnent] and !File.exists?("#{app['deploy_to']}/CURRENT")
+  elsif app['timestamp_deploy'][node.chef_environment] and !::File.exists?("#{app['deploy_to']}/current")
     action = :deploy
   else
-    action = :none
+    action = :nothing
   end
-
+  
   ## Then, deploy
   deploy app['id'] do
-    provider app['timestamp_deploy'][node.chef_enviromnent] ? Chef::Provider::Deploy::TimstampedDeploy : Chef::Provider::Deploy::Revision
+    provider {app['timestamp_deploy'][node.chef_environment] ? Chef::Provider::Deploy::Timestamped : Chef::Provider::Deploy::Revision}
     revision app['revision'][node.chef_environment]
     repository app['repository']
     user app['owner']
@@ -174,6 +180,12 @@ action :create do
     shallow_clone true
     before_migrate do
       if app['gems'].has_key?('bundler')
+        directory "#{release_path}/vendor" do
+          owner app['owner']
+          group app['group']
+          mode '0755'
+          recursive true
+        end
         link "#{release_path}/vendor/bundle" do
           to "#{app['deploy_to']}/shared/vendor_bundle"
         end

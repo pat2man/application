@@ -17,6 +17,8 @@
 # limitations under the License.
 #
 
+include_recipe 'runit'
+
 search(:apps) do |app|
   (app["server_roles"] & node.roles).each do |app_role|
     unless app["type"][app_role]
