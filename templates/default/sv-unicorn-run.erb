@@ -41,7 +41,11 @@ fi
 
 if [ ! $RUNNING ]; then
     echo "Starting unicorn"
+  <% if @options[:app]['gems'].include? "bundler" %>
+    exec chpst -e /etc/sv/<%= @options[:app]['id'] %>/env -u <%= @options[:app]["owner"] %>:<%= @options[:app]["group"] %> bundle exec <%= @options[:smells_like_rack] ? 'unicorn' : 'unicorn_rails' %> -E <%= @options[:rails_env] %> -c /etc/unicorn/<%= @options[:app]['id'] %>.rb
+  <% else %>
     exec chpst -e /etc/sv/<%= @options[:app]['id'] %>/env -u <%= @options[:app]["owner"] %>:<%= @options[:app]["group"] %> <%= @options[:smells_like_rack] ? 'unicorn' : 'unicorn_rails' %> -E <%= @options[:rails_env] %> -c /etc/unicorn/<%= @options[:app]['id'] %>.rb
+  <% end %>
     sleep 3
     CUR_PID=$(cat $CUR_PID_FILE)
 fi
