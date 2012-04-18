@@ -54,7 +54,7 @@ action :create do
     options(
       :app => app,
       :rails_env => node.run_state[:rails_env] || node.chef_environment,
-      :smells_like_rack => ::File.exists?(::File.join(app['deploy_to'], "current", "config.ru")),
+      :smells_like_rack => ::File.exists?(::File.join(app['deploy_to'], "current", "config.ru"))
     )
     run_restart false
   end
